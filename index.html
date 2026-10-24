@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peta Rehabilitasi Mangrove JAPESDA</title>
+<meta name="description" content="Dashboard peta satelit rehabilitasi mangrove JAPESDA di Gorontalo dan Sulawesi Tengah (2000–2026): luas, jumlah bibit, jenis, program, dan sumber data.">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --bg:#0f1714; --panel:#16211d; --card:#1d2b26; --line:#2b3d36;
+  --text:#e8f0ec; --muted:#9fb3aa; --accent:#3ecf8e;
+  --verified:#22c55e; --media:#f5a524; --unverified:#9aa4a0; --protect:#38bdf8;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14px}
+a{color:var(--accent)}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+header .logo{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#1f7a52,#3ecf8e);display:grid;place-items:center;font-weight:700}
+header h1{font-size:16px;margin:0;line-height:1.2}
+header p{margin:0;color:var(--muted);font-size:12px}
+#app{display:flex;height:calc(100% - 57px)}
+#panel{width:420px;max-width:100%;overflow-y:auto;background:var(--panel);border-right:1px solid var(--line);padding:14px}
+#map{flex:1;min-height:300px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}
+.kpi b{display:block;font-size:20px}
+.kpi span{color:var(--muted);font-size:11.5px}
+.kpi.warn b{color:var(--media)}
+.filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.filters select,.filters input{width:100%;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:13px}
+.filters input{grid-column:1/-1}
+.tabs{display:flex;gap:6px;margin:6px 0 10px}
+.tabs button{flex:1;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--muted);cursor:pointer;font-size:13px}
+.tabs button.on{color:var(--text);border-color:var(--accent)}
+.prov{margin-bottom:10px}
+.prov>h2{font-size:14px;margin:8px 0 6px;display:flex;justify-content:space-between}
+.kab{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden}
+.kab>h3{font-size:13px;margin:0;padding:8px 10px;background:var(--card);display:flex;justify-content:space-between;gap:8px}
+.kab .klaim{padding:6px 10px;font-size:12px;color:var(--media);border-top:1px dashed var(--line)}
+.desa{display:flex;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid var(--line);cursor:pointer}
+.desa:hover,.desa.sel{background:#22352e}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.desa .nm{flex:1}
+.desa .nm small{display:block;color:var(--muted)}
+.desa .num{text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}
+.muted{color:var(--muted)}
+#detail{display:none;background:var(--card);border:1px solid var(--accent);border-radius:10px;padding:12px;margin-bottom:12px}
+#detail h3{margin:0 0 2px;font-size:15px}
+#detail .close{float:right;background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px}
+.act{border-top:1px solid var(--line);padding:8px 0}
+.act:first-of-type{border-top:none}
+.act .prog{font-weight:600;margin-bottom:4px}
+.act table{width:100%;border-collapse:collapse;font-size:12.5px}
+.act td{padding:2px 0;vertical-align:top}
+.act td:first-child{color:var(--muted);width:78px}
+.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;color:#0b1210;font-weight:600}
+.src{margin:4px 0 0;padding-left:16px;font-size:12px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 12px;font-size:12px;color:var(--muted);margin:4px 0 10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.srclist li{margin-bottom:8px}
+.note{background:#2a2414;border:1px solid #5a4a1c;border-radius:8px;padding:8px 10px;font-size:12px;color:#f3dfae;margin-bottom:10px}
+.leaflet-popup-content-wrapper{background:var(--panel);color:var(--text);border-radius:10px}
+.leaflet-popup-tip{background:var(--panel)}
+.leaflet-popup-content{margin:10px 12px;font-size:13px}
+.leaflet-popup-content button{margin-top:6px;padding:5px 10px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer}
+.lbl{background:rgba(15,23,20,.85);border:none;color:#fff;box-shadow:none;font-size:11px;padding:2px 6px}
+.lbl:before{display:none}
+footer{font-size:11px;color:var(--muted);margin-top:14px;border-top:1px solid var(--line);padding-top:8px}
+@media (max-width:800px){
+  #app{flex-direction:column-reverse;height:auto}
+  #map{height:55vh;flex:none}
+  #panel{width:100%;border-right:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🌿</div>
+  <div>
+    <h1>Peta Rehabilitasi Mangrove JAPESDA</h1>
+    <p>Gorontalo &amp; Sulawesi Tengah · 2000–2026 · Data publik terdokumentasi</p>
+  </div>
+</header>
+
+<div id="app">
+  <aside id="panel">
+    <div class="kpis" id="kpis"></div>
+    <div class="note">Angka ini adalah <b>batas bawah yang terdokumentasi</b> di sumber publik, bukan total kinerja JAPESDA. Titik di peta adalah <b>perkiraan lokasi desa</b>, bukan poligon lokasi tanam.</div>
+    <div class="filters">
+      <select id="fProv"><option value="">Semua provinsi</option></select>
+      <select id="fKab"><option value="">Semua kabupaten</option></select>
+      <input id="fCari" type="search" placeholder="Cari desa, program, jenis mangrove…">
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="tabs">
+      <button class="on" data-tab="data">Provinsi → Kabupaten → Desa</button>
+      <button data-tab="sumber">Sumber &amp; Catatan</button>
+    </div>
+    <div id="detail"></div>
+    <div id="tab-data"></div>
+    <div id="tab-sumber" style="display:none"></div>
+    <footer>Diperbarui: <span id="upd"></span> · Citra satelit © Esri, Maxar, Earthstar Geographics · Disusun untuk MEL JAPESDA</footer>
+  </aside>
+  <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="data.js"></script>
+<script>
+(function(){
+  const D = window.MANGROVE_DATA;
+  const STATUS = {
+    verified:   {label:"Terverifikasi (laporan donor/ilmiah)", color:"var(--verified)", hex:"#22c55e", rank:4},
+    media:      {label:"Media / angka bibit saja",            color:"var(--media)",    hex:"#f5a524", rank:3},
+    unverified: {label:"Belum terverifikasi / tanpa angka",    color:"var(--unverified)",hex:"#9aa4a0", rank:2},
+    protect:    {label:"Perlindungan (bukan rehabilitasi)",    color:"var(--protect)",  hex:"#38bdf8", rank:1}
+  };
+  const nf = n => n==null ? "–" : n.toLocaleString("id-ID");
+  const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+  // ringkasan per desa
+  D.desa.forEach(d=>{
+    d.luas = d.kegiatan.reduce((s,k)=> s + (typeof k.luas_ha==="number" && k.status!=="protect" ? k.luas_ha : 0), 0);
+    d.bibit = d.kegiatan.reduce((s,k)=> s + (k.bibit && k.bibit_dihitung!==false && k.status!=="protect" ? k.bibit : 0), 0);
+    d.status = d.kegiatan.map(k=>k.status).sort((a,b)=>STATUS[b].rank-STATUS[a].rank)[0];
+    d.jenis = [...new Set(d.kegiatan.flatMap(k=>k.jenis).filter(j=>j && j!=="–" && j!=="Tidak disebut"))];
+    d.program = [...new Set(d.kegiatan.map(k=>k.program))];
+  });
+
+  // ---------- peta ----------
+  const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    {maxZoom:19, attribution:"Citra © Esri, Maxar, Earthstar Geographics"});
+  const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+    {maxZoom:19, attribution:"Label © Esri"});
+  const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {maxZoom:19, attribution:"© OpenStreetMap contributors"});
+  const map = L.map("map",{layers:[sat,labels], zoomControl:true}).setView([0,122.3],7);
+  L.control.layers({"Satelit":sat,"Peta jalan (OSM)":osm},{"Label wilayah":labels},{collapsed:true}).addTo(map);
+  L.control.scale({imperial:false}).addTo(map);
+
+  const markers = {};
+  const layer = L.layerGroup().addTo(map);
+  function radius(d){ return Math.max(8, Math.min(26, 6 + Math.sqrt(d.bibit||0)/18)); }
+  D.desa.forEach(d=>{
+    const m = L.circleMarker([d.lat,d.lng],{
+      radius:radius(d), color:"#fff", weight:2, fillColor:STATUS[d.status].hex, fillOpacity:.85
+    });
+    m.bindTooltip(d.desa,{permanent:true,direction:"right",offset:[10,0],className:"lbl"});
+    m.bindPopup(()=>`<b>${esc(d.desa)}</b><br><span class="muted">${esc(d.kecamatan)}, ${esc(d.kabupaten)} — ${esc(d.provinsi)}</span><br>
+      Luas tanam: <b>${d.luas? nf(d.luas)+" ha":"tidak terdokumentasi"}</b><br>
+      Bibit: <b>${d.bibit? nf(d.bibit):"–"}</b><br>
+      Jenis: ${d.jenis.length? "<i>"+d.jenis.map(esc).join(", ")+"</i>" : "tidak disebut"}<br>
+      <button onclick="window.__showDetail('${d.id}')">Lihat detail &amp; sumber</button>`);
+    m.on("click",()=>showDetail(d.id,false));
+    markers[d.id]=m;
+  });
+
+  // ---------- filter ----------
+  const fProv=document.getElementById("fProv"), fKab=document.getElementById("fKab"), fCari=document.getElementById("fCari");
+  [...new Set(D.desa.map(d=>d.provinsi))].forEach(p=>fProv.add(new Option(p,p)));
+  function fillKab(){
+    const cur=fKab.value; fKab.length=1;
+    [...new Set(D.desa.filter(d=>!fProv.value||d.provinsi===fProv.value).map(d=>d.kabupaten))].forEach(k=>fKab.add(new Option(k,k)));
+    if([...fKab.options].some(o=>o.value===cur)) fKab.value=cur;
+  }
+  function filtered(){
+    const q=fCari.value.trim().toLowerCase();
+    return D.desa.filter(d=>(!fProv.value||d.provinsi===fProv.value)&&(!fKab.value||d.kabupaten===fKab.value)&&
+      (!q || [d.desa,d.kecamatan,d.kabupaten,...d.program,...d.kegiatan.flatMap(k=>k.jenis),...d.kegiatan.map(k=>k.mitra)].join(" ").toLowerCase().includes(q)));
+  }
+
+  // ---------- render ----------
+  function render(){
+    const list=filtered();
+    layer.clearLayers(); list.forEach(d=>layer.addLayer(markers[d.id]));
+    if(list.length){ map.fitBounds(L.latLngBounds(list.map(d=>[d.lat,d.lng])).pad(.35),{maxZoom:12}); }
+
+    const klaim=D.klaim_kabupaten.filter(k=>(!fProv.value||k.provinsi===fProv.value)&&(!fKab.value||k.kabupaten===fKab.value)&&list.some(d=>d.kabupaten===k.kabupaten));
+    const luas=list.reduce((s,d)=>s+d.luas,0), bibit=list.reduce((s,d)=>s+d.bibit,0);
+    const klaimHa=klaim.reduce((s,k)=>s+k.luas_ha,0);
+    const nDesa=list.filter(d=>d.status!=="protect"||d.kegiatan.length>1).length;
+    const prog=new Set(list.flatMap(d=>d.program)).size;
+    document.getElementById("kpis").innerHTML=`
+      <div class="kpi"><b>${nf(luas)} ha</b><span>Luas tanam terverifikasi</span></div>
+      <div class="kpi warn"><b>±${nf(klaimHa)} ha</b><span>Klaim belum terverifikasi</span></div>
+      <div class="kpi"><b>${nf(bibit)}</b><span>Bibit tertanam terdokumentasi</span></div>
+      <div class="kpi"><b>${nDesa} desa · ${prog} kegiatan</b><span>Lokasi &amp; program/kegiatan</span></div>`;
+
+    // pohon provinsi -> kabupaten -> desa
+    const byProv={};
+    list.forEach(d=>{ (byProv[d.provinsi]??={})[d.kabupaten] ??= []; byProv[d.provinsi][d.kabupaten].push(d); });
+    let h="";
+    Object.keys(byProv).forEach(p=>{
+      const ds=Object.values(byProv[p]).flat();
+      h+=`<div class="prov"><h2>${esc(p)} <span class="muted">${nf(ds.reduce((s,d)=>s+d.luas,0))} ha · ${nf(ds.reduce((s,d)=>s+d.bibit,0))} bibit</span></h2>`;
+      Object.keys(byProv[p]).forEach(k=>{
+        const arr=byProv[p][k];
+        h+=`<div class="kab"><h3>Kab. ${esc(k)} <span class="muted">${nf(arr.reduce((s,d)=>s+d.luas,0))} ha · ${nf(arr.reduce((s,d)=>s+d.bibit,0))} bibit</span></h3>`;
+        D.klaim_kabupaten.filter(c=>c.kabupaten===k).forEach(c=>{
+          h+=`<div class="klaim">⚠ Klaim ±${nf(c.luas_ha)} ha (gabungan desa): ${esc(c.keterangan)}</div>`;
+        });
+        arr.forEach(d=>{
+          h+=`<div class="desa" data-id="${d.id}"><span class="dot" style="background:${STATUS[d.status].color}"></span>
+            <div class="nm">${esc(d.desa)}<small>Kec. ${esc(d.kecamatan)} · ${d.jenis.length? esc(d.jenis.join(", ")):"jenis tidak disebut"}</small></div>
+            <div class="num">${d.luas? nf(d.luas)+" ha":"– ha"}<br>${d.bibit? nf(d.bibit)+" bibit":"– bibit"}</div></div>`;
+        });
+        h+=`</div>`;
+      });
+      h+=`</div>`;
+    });
+    if(!list.length) h=`<p class="muted">Tidak ada desa yang cocok dengan filter.</p>`;
+    const tab=document.getElementById("tab-data"); tab.innerHTML=h;
+    tab.querySelectorAll(".desa").forEach(el=>el.onclick=()=>showDetail(el.dataset.id,true));
+  }
+
+  function srcHTML(ids){
+    return `<ul class="src">${ids.map(id=>{const s=D.sumber[id]; if(!s) return "";
+      return `<li>${s.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.judul)}</a>`:esc(s.judul)} — ${esc(s.media)}, ${esc(s.tahun)} <span class="muted">(${esc(s.jenis)})</span></li>`;}).join("")}</ul>`;
+  }
+
+  function showDetail(id,fly){
+    const d=D.desa.find(x=>x.id===id); if(!d) return;
+    document.querySelectorAll(".desa").forEach(el=>el.classList.toggle("sel",el.dataset.id===id));
+    const box=document.getElementById("detail");
+    box.style.display="block";
+    box.innerHTML=`<button class="close" aria-label="Tutup">×</button>
+      <h3>Desa ${esc(d.desa)}</h3>
+      <div class="muted" style="margin-bottom:8px">Kec. ${esc(d.kecamatan)} · Kab. ${esc(d.kabupaten)} · ${esc(d.provinsi)}<br>
+      Koordinat perkiraan: ${d.lat.toFixed(4)}, ${d.lng.toFixed(4)}</div>
+      ${d.kegiatan.map(k=>`<div class="act">
+        <div class="prog">${esc(k.program)}</div>
+        <span class="badge" style="background:${STATUS[k.status].color}">${STATUS[k.status].label}</span>
+        <table>
+          <tr><td>Tahun</td><td>${esc(k.tahun)}</td></tr>
+          <tr><td>Luas</td><td>${typeof k.luas_ha==="number"? "<b>"+nf(k.luas_ha)+" ha</b>":"tidak terdokumentasi"}</td></tr>
+          <tr><td>Bibit</td><td>${k.bibit? "<b>"+nf(k.bibit)+"</b>":"–"}${k.bibit_dihitung===false?" (termasuk angka gabungan)":""}</td></tr>
+          <tr><td>Jenis</td><td><i>${esc(k.jenis.join(", "))}</i></td></tr>
+          <tr><td>Mitra/donor</td><td>${esc(k.mitra)}</td></tr>
+          <tr><td>Catatan</td><td>${esc(k.catatan)}</td></tr>
+          <tr><td>Sumber</td><td>${srcHTML(k.sumber)}</td></tr>
+        </table></div>`).join("")}`;
+    box.querySelector(".close").onclick=()=>{box.style.display="none";document.querySelectorAll(".desa").forEach(el=>el.classList.remove("sel"));};
+    if(fly){ map.flyTo([d.lat,d.lng],13,{duration:1}); setTimeout(()=>markers[id].openPopup(),1050); }
+    document.getElementById("panel").scrollTo({top:box.offsetTop-10,behavior:"smooth"});
+  }
+  window.__showDetail=id=>showDetail(id,false);
+
+  // tab sumber
+  const used={}; D.desa.forEach(d=>d.kegiatan.forEach(k=>k.sumber.forEach(s=>(used[s]??=new Set()).add(d.desa))));
+  D.klaim_kabupaten.forEach(k=>k.sumber.forEach(s=>(used[s]??=new Set()).add("Kab. "+k.kabupaten)));
+  document.getElementById("tab-sumber").innerHTML=`
+    <h3 style="font-size:14px">Kesenjangan data</h3>
+    <ul>${D.kesenjangan.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+    <h3 style="font-size:14px">Daftar sumber (${Object.keys(D.sumber).length})</h3>
+    <ol class="srclist">${Object.entries(D.sumber).map(([id,s])=>`<li>${s.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.judul)}</a>`:esc(s.judul)}<br>
+      <span class="muted">${esc(s.media)} · ${esc(s.tahun)} · ${esc(s.jenis)}${used[id]?" · dipakai untuk: "+esc([...used[id]].join(", ")):""}</span></li>`).join("")}</ol>`;
+
+  document.getElementById("legend").innerHTML=Object.values(STATUS).map(s=>`<span><i style="background:${s.color}"></i>${s.label}</span>`).join("")+`<span class="muted">· ukuran titik = jumlah bibit</span>`;
+  document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
+    document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on",x===b));
+    document.getElementById("tab-data").style.display=b.dataset.tab==="data"?"":"none";
+    document.getElementById("tab-sumber").style.display=b.dataset.tab==="sumber"?"":"none";
+  });
+  document.getElementById("upd").textContent=D.updated;
+
+  fProv.onchange=()=>{fillKab();render();};
+  fKab.onchange=render; fCari.oninput=render;
+  fillKab(); render();
+})();
+</script>
+</body>
+</html>
